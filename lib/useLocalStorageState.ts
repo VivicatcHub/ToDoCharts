@@ -7,8 +7,8 @@ export function useLocalStorageState<T>(key: string, fallback: T) {
     try {
       const raw = localStorage.getItem(key);
       return raw ? (JSON.parse(raw) as T) : fallback;
-    } catch (e) {
-      console.error("Failed to load", key, e);
+    } catch (error) {
+      console.error("Failed to load", key, error);
       return fallback;
     }
   });
@@ -21,8 +21,8 @@ export function useLocalStorageState<T>(key: string, fallback: T) {
     }
     try {
       localStorage.setItem(key, JSON.stringify(state));
-    } catch (e) {
-      console.error("Failed to save", key, e);
+    } catch (error) {
+      console.error("Failed to save", key, error);
     }
   }, [key, state]);
 

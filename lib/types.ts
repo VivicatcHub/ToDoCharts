@@ -50,3 +50,19 @@ export interface MonthStats {
   perDay: PerDayStat[];
   perHabit: PerHabitStat[];
 }
+
+export const CURRENT_SCHEMA_VERSION = 1;
+
+export interface UpdateInfo {
+  schemaVersion: number;
+  updatedAt: string;
+}
+
+export interface HabitBackup {
+  schemaVersion: number;
+  updatedAt: string;
+  data: {
+    habits: Habit[];
+    completions: Completions;
+  };
+}

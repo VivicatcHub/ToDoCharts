@@ -9,22 +9,34 @@ import {
 } from "@/lib/dates";
 import { computeMonthStats, habitState, nextTristate } from "@/lib/habits";
 import { useLocalStorageState } from "@/lib/useLocalStorageState";
-import type { Completions, Habit, TristateState } from "@/lib/types";
+import {
+  CURRENT_SCHEMA_VERSION,
+  type Completions,
+  type Habit,
+  type TristateState,
+  type UpdateInfo,
+} from "@/lib/types";
 import TopBar from "./TopBar";
 import StatsRow from "./StatsRow";
 import ProgressChart from "./ProgressChart";
 import MonthGrid from "./MonthGrid";
 import DayView from "./DayView";
 import SettingsModal from "./SettingsModal";
+import GoogleDriveSettings from "./GoogleDrive/GoogleDriveSettings";
 
 const HABITS_KEY = "todocharts.habits";
 const COMPLETIONS_KEY = "todocharts.completions";
+const UPDATE_INFO_KEY = "todocharts.update.info";
 
 export default function App() {
   const [habits, setHabits] = useLocalStorageState<Habit[]>(HABITS_KEY, []);
   const [completions, setCompletions] = useLocalStorageState<Completions>(
     COMPLETIONS_KEY,
     {},
+  );
+  const [updateInfo, setUpdateInfo] = useLocalStorageState<UpdateInfo>(
+    UPDATE_INFO_KEY,
+    { schemaVersion: 0, updatedAt: "" },
   );
 
   const [today] = useState(() => new Date());
@@ -40,22 +52,37 @@ export default function App() {
     [habits, completions, viewYear, viewMonth],
   );
 
+  function touchUpdateInfo() {
+    setUpdateInfo({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
   function setCompletionState(
     habitId: string,
     iso: string,
     state: TristateState,
   ) {
+    touchUpdateInfo();
     setCompletions((prev) => {
       const next = { ...prev };
       if (state === "none") {
         if (next[iso]) {
           const dayMap = { ...next[iso] };
           delete dayMap[habitId];
-          if (Object.keys(dayMap).length === 0) delete next[iso];
-          else next[iso] = dayMap;
+
+          if (Object.keys(dayMap).length === 0) {
+            delete next[iso];
+          } else {
+            next[iso] = dayMap;
+          }
         }
       } else {
-        next[iso] = { ...(next[iso] || {}), [habitId]: state };
+        next[iso] = {
+          ...(next[iso] || {}),
+          [habitId]: state,
+        };
       }
       return next;
     });
@@ -67,16 +94,19 @@ export default function App() {
   }
 
   function addHabit(habit: Habit) {
+    touchUpdateInfo();
     setHabits((prev) => [...prev, habit]);
   }
 
   function updateHabit(id: string, patch: Partial<Habit>) {
+    touchUpdateInfo();
     setHabits((prev) =>
       prev.map((h) => (h.id === id ? { ...h, ...patch } : h)),
     );
   }
 
   function deleteHabit(id: string) {
+    touchUpdateInfo();
     setHabits((prev) => prev.filter((h) => h.id !== id));
     setCompletions((prev) => {
       const next: Completions = {};
@@ -87,7 +117,10 @@ export default function App() {
         }
         const dayMap = { ...prev[iso] };
         delete dayMap[id];
-        if (Object.keys(dayMap).length > 0) next[iso] = dayMap;
+
+        if (Object.keys(dayMap).length > 0) {
+          next[iso] = dayMap;
+        }
       }
       return next;
     });
@@ -157,6 +190,15 @@ export default function App() {
           onPrevDay={() => setDayViewISO((iso) => isoAddDays(iso, -1))}
           onNextDay={() => setDayViewISO((iso) => isoAddDays(iso, 1))}
           onCycle={cycleHabitState}
+        />
+
+        <GoogleDriveSettings
+          habits={habits}
+          setHabits={setHabits}
+          completions={completions}
+          setCompletions={setCompletions}
+          updateInfo={updateInfo}
+          setUpdateInfo={setUpdateInfo}
         />
       </div>
 
