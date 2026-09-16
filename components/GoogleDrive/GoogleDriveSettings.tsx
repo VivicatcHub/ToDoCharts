@@ -301,7 +301,7 @@ export default function GoogleDriveSettings({
       return;
     }
     tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
-      client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+      client_id: process.env.NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID!,
       scope: GOOGLE_TOKEN_SCOPE,
       callback: (response: GoogleTokenResponse) => {
         clearConnectTimeout();

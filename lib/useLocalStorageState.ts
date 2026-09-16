@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 export function useLocalStorageState<T>(key: string, fallback: T) {
   const [state, setState] = useState<T>(() => {
@@ -13,12 +13,7 @@ export function useLocalStorageState<T>(key: string, fallback: T) {
     }
   });
 
-  const isFirstRun = useRef(true);
   useEffect(() => {
-    if (isFirstRun.current) {
-      isFirstRun.current = false;
-      return;
-    }
     try {
       localStorage.setItem(key, JSON.stringify(state));
     } catch (error) {
