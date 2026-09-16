@@ -1,4 +1,5 @@
 import {
+  DOW_LABELS,
   daysBetweenISO,
   daysInMonth,
   dateToISO,
@@ -10,6 +11,7 @@ import type {
   DayCell,
   Habit,
   MonthStats,
+  Recurrence,
   TristateState,
   Week,
 } from "./types";
@@ -133,4 +135,27 @@ export function uid(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID)
     return crypto.randomUUID();
   return "id-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+}
+
+const FULL_DOW = [
+  "Mondays",
+  "Tuesdays",
+  "Wednesdays",
+  "Thursdays",
+  "Fridays",
+  "Saturdays",
+  "Sundays",
+];
+
+export function describeRecurrence(rec: Recurrence): string {
+  if (rec.type === "interval") {
+    return `Every ${rec.days} days`;
+  }
+  if (rec.type === "weekly") {
+    if (rec.weekdays.length === 0) return "No days picked yet";
+    if (rec.weekdays.length === 7) return "Every day";
+    if (rec.weekdays.length === 1) return FULL_DOW[rec.weekdays[0]];
+    return rec.weekdays.map((d) => DOW_LABELS[d]).join(" · ");
+  }
+  return "Every day";
 }

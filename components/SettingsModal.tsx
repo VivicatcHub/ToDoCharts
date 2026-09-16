@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { mondayIndex } from "@/lib/dates";
-import { uid } from "@/lib/habits";
+import { describeRecurrence, uid } from "@/lib/habits";
 import type { Habit, Recurrence } from "@/lib/types";
 import WeekdayPicker from "./WeekdayPicker";
 
@@ -18,6 +18,23 @@ function recurrenceFromInputs(
   if (typeVal === "weekly")
     return { type: "weekly", weekdays: [...weekdays].sort((a, b) => a - b) };
   return { type: "daily" };
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M4 7h16M10 7V5h4v2M6 7l1 13h10l1-13M10 11v6M14 11v6" />
+    </svg>
+  );
 }
 
 export default function SettingsModal({
@@ -41,6 +58,19 @@ export default function SettingsModal({
   const [recurType, setRecurType] = useState<RecurType>("daily");
   const [interval, setInterval_] = useState(2);
   const [weekdays, setWeekdays] = useState<number[]>([]);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose]);
 
   function handleRecurTypeChange(t: RecurType) {
     setRecurType(t);
@@ -81,89 +111,130 @@ export default function SettingsModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal">
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+      >
         <div className="modal-header">
-          <h2>My Habits</h2>
+          <div>
+            <h2 id="settings-title">Settings</h2>
+            <p className="subtitle">Create habits and tune their schedules</p>
+          </div>
           <button className="icon-btn" aria-label="Close" onClick={onClose}>
             &#10005;
           </button>
         </div>
 
-        <form className="add-habit-form" onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="New habit name"
-            required
-            maxLength={60}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <label className="date-field">
-            <span>Starts on</span>
-            <input
-              type="date"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-            />
-          </label>
-          <label className="date-field">
-            <span>Ends on (optional)</span>
-            <input
-              type="date"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-            />
-          </label>
-          <label className="date-field">
-            <span>Repeats</span>
-            <select
-              value={recurType}
-              onChange={(e) =>
-                handleRecurTypeChange(e.target.value as RecurType)
-              }
-            >
-              <option value="daily">Every day</option>
-              <option value="interval">Every N days</option>
-              <option value="weekly">Specific weekdays</option>
-            </select>
-          </label>
-          {recurType === "interval" && (
-            <label className="date-field">
-              <span>Every how many days</span>
-              <input
-                type="number"
-                min={2}
-                max={365}
-                value={interval}
-                onChange={(e) =>
-                  setInterval_(Math.max(1, parseInt(e.target.value, 10) || 2))
-                }
-              />
-            </label>
-          )}
-          {recurType === "weekly" && (
-            <WeekdayPicker selected={weekdays} onToggle={toggleWeekday} />
-          )}
-          <button type="submit" className="btn primary">
-            Add habit
-          </button>
-        </form>
+        <div className="modal-body">
+          <section className="settings-section">
+            <h3 className="section-title">Add a habit</h3>
+            <form className="add-habit-form" onSubmit={handleSubmit}>
+              <div className="field-grid">
+                <label className="field full">
+                  <span>Habit name</span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Read 20 minutes"
+                    required
+                    maxLength={60}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>Starts on</span>
+                  <input
+                    type="date"
+                    value={start}
+                    onChange={(e) => setStart(e.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>Ends on (optional)</span>
+                  <input
+                    type="date"
+                    value={end}
+                    onChange={(e) => setEnd(e.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>Repeats</span>
+                  <select
+                    value={recurType}
+                    onChange={(e) =>
+                      handleRecurTypeChange(e.target.value as RecurType)
+                    }
+                  >
+                    <option value="daily">Every day</option>
+                    <option value="interval">Every N days</option>
+                    <option value="weekly">Specific weekdays</option>
+                  </select>
+                </label>
+                {recurType === "interval" && (
+                  <label className="field">
+                    <span>Every how many days</span>
+                    <input
+                      type="number"
+                      min={2}
+                      max={365}
+                      value={interval}
+                      onChange={(e) =>
+                        setInterval_(
+                          Math.max(1, parseInt(e.target.value, 10) || 2),
+                        )
+                      }
+                    />
+                  </label>
+                )}
+                {recurType === "weekly" && (
+                  <div className="field full">
+                    <span>On these days</span>
+                    <WeekdayPicker
+                      selected={weekdays}
+                      onToggle={toggleWeekday}
+                    />
+                  </div>
+                )}
+              </div>
+              <button type="submit" className="btn primary block">
+                Add habit
+              </button>
+            </form>
+          </section>
 
-        <ul className="habit-list">
-          {habits.map((habit) => (
-            <HabitEditCard
-              key={habit.id}
-              habit={habit}
-              onUpdate={(patch) => onUpdateHabit(habit.id, patch)}
-              onDelete={() => onDeleteHabit(habit.id)}
-            />
-          ))}
-        </ul>
-        {habits.length === 0 && (
-          <p className="empty-hint" style={{ display: "block" }}>
-            No habits yet — add your first one above.
-          </p>
-        )}
+          <section className="settings-section">
+            <h3 className="section-title">
+              Your habits
+              <span className="count-badge">{habits.length}</span>
+            </h3>
+
+            {habits.length === 0 ? (
+              <div className="empty-state">
+                <span className="emoji" aria-hidden="true">
+                  ✦
+                </span>
+                <span className="title">No habits yet</span>
+                <span className="desc">
+                  Add your first habit above — it will show up in the month grid
+                  and in your daily view right away.
+                </span>
+              </div>
+            ) : (
+              <ul className="habit-list">
+                {habits.map((habit) => (
+                  <HabitEditCard
+                    key={habit.id}
+                    habit={habit}
+                    onUpdate={(patch) => onUpdateHabit(habit.id, patch)}
+                    onDelete={() => onDeleteHabit(habit.id)}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );
@@ -225,17 +296,20 @@ function HabitEditCard({
 
   return (
     <li className="habit-edit-card">
-      <div className="habit-edit-row">
+      <div className="habit-edit-head">
         <input
           type="text"
           maxLength={60}
+          aria-label="Habit name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={commitName}
         />
         <button
           type="button"
-          className="btn danger"
+          className="icon-btn danger"
+          aria-label={`Delete ${habit.name}`}
+          title="Delete habit"
           onClick={() => {
             if (
               confirm(
@@ -245,12 +319,17 @@ function HabitEditCard({
               onDelete();
           }}
         >
-          Delete
+          <TrashIcon />
         </button>
       </div>
 
-      <div className="habit-edit-row">
-        <label className="date-field">
+      <span className="recurrence-tag">
+        {describeRecurrence(habit.recurrence)}
+        {habit.endDate ? ` · until ${habit.endDate}` : ""}
+      </span>
+
+      <div className="field-grid">
+        <label className="field">
           <span>Starts on</span>
           <input
             type="date"
@@ -260,7 +339,7 @@ function HabitEditCard({
             }
           />
         </label>
-        <label className="date-field">
+        <label className="field">
           <span>Ends on</span>
           <input
             type="date"
@@ -268,10 +347,7 @@ function HabitEditCard({
             onChange={(e) => onUpdate({ endDate: e.target.value || null })}
           />
         </label>
-      </div>
-
-      <div className="habit-edit-row">
-        <label className="date-field">
+        <label className="field">
           <span>Repeats</span>
           <select
             value={habit.recurrence.type}
@@ -285,7 +361,7 @@ function HabitEditCard({
           </select>
         </label>
         {habit.recurrence.type === "interval" && (
-          <label className="date-field">
+          <label className="field">
             <span>Every how many days</span>
             <input
               type="number"
@@ -298,7 +374,10 @@ function HabitEditCard({
           </label>
         )}
         {habit.recurrence.type === "weekly" && (
-          <WeekdayPicker selected={weekdays} onToggle={toggleWeekday} />
+          <div className="field full">
+            <span>On these days</span>
+            <WeekdayPicker selected={weekdays} onToggle={toggleWeekday} />
+          </div>
         )}
       </div>
     </li>

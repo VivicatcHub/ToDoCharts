@@ -1,12 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  dateToISO,
-  formatNiceDate,
-  isoAddDays,
-  MONTH_LABELS,
-} from "@/lib/dates";
+import { dateToISO, isoAddDays, MONTH_LABELS } from "@/lib/dates";
 import { computeMonthStats, habitState, nextTristate } from "@/lib/habits";
 import { useLocalStorageState } from "@/lib/useLocalStorageState";
 import {
@@ -152,15 +147,12 @@ export default function App() {
   }
 
   const monthLabel = `${MONTH_LABELS[viewMonth]} ${viewYear}`;
-  const mobileDateLabel =
-    dayViewISO === todayISO ? "Today" : formatNiceDate(dayViewISO);
 
   return (
     <>
       <div id="app">
         <TopBar
           monthLabel={monthLabel}
-          mobileDateLabel={mobileDateLabel}
           onPrevMonth={goPrevMonth}
           onNextMonth={goNextMonth}
           onToday={goToday}
@@ -185,11 +177,14 @@ export default function App() {
 
         <DayView
           dayViewISO={dayViewISO}
+          todayISO={todayISO}
           habits={habits}
           completions={completions}
           onPrevDay={() => setDayViewISO((iso) => isoAddDays(iso, -1))}
           onNextDay={() => setDayViewISO((iso) => isoAddDays(iso, 1))}
+          onToday={() => setDayViewISO(todayISO)}
           onCycle={cycleHabitState}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
 
         <GoogleDriveSettings

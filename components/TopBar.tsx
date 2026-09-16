@@ -2,14 +2,12 @@
 
 export default function TopBar({
   monthLabel,
-  mobileDateLabel,
   onPrevMonth,
   onNextMonth,
   onToday,
   onOpenSettings,
 }: {
   monthLabel: string;
-  mobileDateLabel: string;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onToday: () => void;
@@ -42,8 +40,6 @@ export default function TopBar({
           Today
         </button>
       </div>
-
-      <div className="today-label mobile-only">{mobileDateLabel}</div>
 
       <button
         className="icon-btn settings-btn"

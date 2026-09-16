@@ -22,6 +22,11 @@ interface GoogleTokenResponse {
   error?: string;
 }
 
+interface GoogleTokenError {
+  type: "popup_failed_to_open" | "popup_closed" | "unknown";
+  message?: string;
+}
+
 interface GoogleTokenClient {
   requestAccessToken: (overrideConfig?: { prompt?: string }) => void;
 }
@@ -35,6 +40,7 @@ declare global {
             client_id: string;
             scope: string;
             callback: (response: GoogleTokenResponse) => void;
+            error_callback?: (error: GoogleTokenError) => void;
           }) => GoogleTokenClient;
         };
       };
@@ -59,6 +65,37 @@ const GOOGLE_TOKEN_SCOPE =
 const REFRESH_BUFFER_MS = 5 * 60 * 1000;
 const CONNECT_TIMEOUT_MS = 10_000;
 
+const DRIVE_ICON = (
+  <svg width="22" height="22" viewBox="0 0 48 48" aria-hidden="true">
+    <path fill="#0f9d58" d="M30.2 6H17.8L30.6 28h12.4z" />
+    <path fill="#4285f4" d="M17.8 6 5 28l6.2 10.7L30.6 6z" />
+    <path fill="#ffcd40" d="M11.2 38.7h25.6L43 28H17.8z" />
+  </svg>
+);
+
+function formatClock(iso: string | null): string | null {
+  if (!iso) {
+    return null;
+  }
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  const today = new Date();
+  const sameDay = date.toDateString() === today.toDateString();
+  const time = date.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  if (sameDay) {
+    return `Last synced at ${time}`;
+  }
+  return `Last synced ${date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  })} at ${time}`;
+}
+
 export default function GoogleDriveSettings({
   habits,
   setHabits,
@@ -73,6 +110,11 @@ export default function GoogleDriveSettings({
   const [error, setError] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [promptSelectAccount, setPromptSelectAccount] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(() =>
+    getStoredUserEmail(),
+  );
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
 
   const habitsRef = useRef(habits);
   const completionsRef = useRef(completions);
@@ -93,6 +135,11 @@ export default function GoogleDriveSettings({
   function applySyncedUpdateInfo(info: UpdateInfo) {
     selfWrittenAtRef.current = info.updatedAt;
     setUpdateInfo(info);
+  }
+
+  function markSynced() {
+    setSyncError(null);
+    setLastSyncedAt(new Date().toISOString());
   }
 
   async function reconcile() {
@@ -128,7 +175,7 @@ export default function GoogleDriveSettings({
           updatedAt: pushed.updatedAt,
         });
       }
-      setSyncError(null);
+      markSynced();
     } finally {
       syncInFlightRef.current = false;
       setSyncing(false);
@@ -150,7 +197,7 @@ export default function GoogleDriveSettings({
         schemaVersion: pushed.schemaVersion,
         updatedAt: pushed.updatedAt,
       });
-      setSyncError(null);
+      markSynced();
     } finally {
       syncInFlightRef.current = false;
       setSyncing(false);
@@ -180,7 +227,7 @@ export default function GoogleDriveSettings({
           updatedAt: new Date().toISOString(),
         });
       }
-      setSyncError(null);
+      markSynced();
     } finally {
       syncInFlightRef.current = false;
       setSyncing(false);
@@ -198,6 +245,10 @@ export default function GoogleDriveSettings({
       const isDifferentUser =
         email !== null && lastUser !== null && email !== lastUser;
 
+      if (email) {
+        setUserEmail(email);
+      }
+
       if (isDifferentUser) {
         await reconcileForNewUser();
       } else {
@@ -209,7 +260,7 @@ export default function GoogleDriveSettings({
       }
     } catch (err) {
       console.error(err);
-      setError("Failed to synchronize with Google Drive.");
+      setError("Couldn't sync with Google Drive.");
     }
   }
 
@@ -223,7 +274,10 @@ export default function GoogleDriveSettings({
     }
     const delay = Math.max(expiresInSeconds * 1000 - REFRESH_BUFFER_MS, 10_000);
     refreshTimeoutRef.current = setTimeout(() => {
-      tokenClientRef.current?.requestAccessToken({ prompt: "" });
+      refreshTimeoutRef.current = null;
+      clearAccessToken();
+      setConnected(false);
+      setSessionExpired(true);
     }, delay);
   }
 
@@ -258,6 +312,13 @@ export default function GoogleDriveSettings({
         scheduleTokenRefresh(response.expires_in);
         handleToken(response.access_token, response.expires_in);
       },
+      error_callback: (err: GoogleTokenError) => {
+        clearConnectTimeout();
+        setConnecting(false);
+        if (err.type === "popup_failed_to_open") {
+          setError("Your browser blocked the Google sign-in popup.");
+        }
+      },
     });
 
     if (autoReconnectTriedRef.current) {
@@ -270,13 +331,6 @@ export default function GoogleDriveSettings({
       if (cached) {
         scheduleTokenRefresh(cached.expiresInSeconds);
         handleToken(cached.token, cached.expiresInSeconds);
-        return;
-      }
-
-      if (getStoredUserEmail()) {
-        setConnecting(true);
-        armConnectTimeout();
-        tokenClientRef.current?.requestAccessToken({ prompt: "" });
       }
     }, 0);
   }
@@ -297,10 +351,16 @@ export default function GoogleDriveSettings({
     if (!tokenClientRef.current) {
       initializeGoogleClient();
     }
+    setError(null);
+    setSessionExpired(false);
     setConnecting(true);
     armConnectTimeout();
     tokenClientRef.current?.requestAccessToken(
-      promptSelectAccount ? { prompt: "select_account" } : undefined,
+      promptSelectAccount
+        ? { prompt: "select_account" }
+        : userEmail
+          ? { prompt: "" }
+          : undefined,
     );
   }
 
@@ -312,8 +372,18 @@ export default function GoogleDriveSettings({
     clearAccessToken();
     setConnected(false);
     setPromptSelectAccount(true);
+    setSessionExpired(false);
     setError(null);
     setSyncError(null);
+    setUserEmail(null);
+    setLastSyncedAt(null);
+  }
+
+  function handleSyncNow() {
+    reconcile().catch((err) => {
+      console.error(err);
+      setSyncError("Sync failed — tap to retry.");
+    });
   }
 
   useEffect(() => {
@@ -346,41 +416,111 @@ export default function GoogleDriveSettings({
     return () => clearInterval(interval);
   }, [connected]);
 
+  const status = error
+    ? { tone: "bad", label: "Error" }
+    : connecting
+      ? { tone: "busy", label: "Connecting" }
+      : !connected
+        ? { tone: "idle", label: "Not connected" }
+        : syncing
+          ? { tone: "busy", label: "Syncing" }
+          : syncError
+            ? { tone: "bad", label: "Retrying" }
+            : { tone: "ok", label: "Synced" };
+
+  const syncedLabel = formatClock(lastSyncedAt);
+  const alert = error || syncError;
+  const canReconnect = !promptSelectAccount && userEmail !== null;
+
   return (
-    <section className="stats-row">
+    <section className="drive-card">
       <Script
         src="https://accounts.google.com/gsi/client"
         strategy="afterInteractive"
         onLoad={initializeGoogleClient}
       />
-      <div className="stat-card">
-        <span className="stat-label">Google Drive</span>
-        {error ? (
-          <span className="stat-value">{error}</span>
-        ) : !connected ? (
-          <GoogleDriveButton onClick={connect} connecting={connecting} />
-        ) : (
-          <span className="stat-value">
-            {syncing ? "Synchronizing..." : syncError || "✓ Connected"}
+
+      <div className="drive-head">
+        <span className="drive-logo">{DRIVE_ICON}</span>
+        <span className="drive-head-text">
+          <span className="drive-title">Google Drive backup</span>
+          <span className="drive-sub">
+            {connected
+              ? "Your habits are backed up automatically."
+              : "Keep your habits safe across devices."}
           </span>
-        )}
+        </span>
+        <span className={`status-pill ${status.tone}`}>
+          <span className="status-dot" />
+          {status.label}
+        </span>
       </div>
-      <div className="stat-card">
-        <span className="stat-label">Change User</span>
-        {connected ? (
-          <button
-            type="button"
-            onClick={handleChangeUser}
-            className="cursor-pointer hover:bg-[#262b36] rounded-lg"
-          >
-            Change User
-          </button>
-        ) : (
-          <span className="stat-value">
-            {promptSelectAccount ? "Connect above to switch accounts" : "—"}
-          </span>
-        )}
-      </div>
+
+      {connected ? (
+        <>
+          <div className="drive-account">
+            <span className="drive-avatar" aria-hidden="true">
+              {(userEmail || "?").charAt(0)}
+            </span>
+            <span className="drive-account-text">
+              <span className="email">{userEmail || "Google account"}</span>
+              <span className="when">
+                {syncing ? "Syncing…" : syncedLabel || "Waiting for first sync"}
+              </span>
+            </span>
+          </div>
+
+          <div className="drive-actions">
+            <button
+              type="button"
+              className="btn"
+              onClick={handleSyncNow}
+              disabled={syncing}
+            >
+              {syncing ? "Syncing…" : "Sync now"}
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={handleChangeUser}
+            >
+              Change account
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="drive-blurb">
+            {promptSelectAccount
+              ? "Signed out. Connect again to pick a different Google account."
+              : canReconnect
+                ? sessionExpired
+                  ? `Your Google session expired. Reconnect as ${userEmail} to resume syncing.`
+                  : `Reconnect as ${userEmail} to resume syncing.`
+                : "Connect to store a single backup file in your Drive and sync it automatically."}
+          </p>
+          <div className="drive-actions">
+            <GoogleDriveButton
+              onClick={connect}
+              connecting={connecting}
+              label={
+                promptSelectAccount
+                  ? "Connect another account"
+                  : canReconnect
+                    ? "Reconnect Google Drive"
+                    : "Connect Google Drive"
+              }
+            />
+          </div>
+        </>
+      )}
+
+      {alert && (
+        <div className="drive-alert" role="status">
+          <span aria-hidden="true">!</span>
+          <span>{alert}</span>
+        </div>
+      )}
     </section>
   );
 }

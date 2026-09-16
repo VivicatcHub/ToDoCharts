@@ -14,24 +14,38 @@ export default function TristateBox({
   onClick,
   large,
   doneColor,
+  indicator,
 }: {
   state: TristateState;
-  onClick: () => void;
+  onClick?: () => void;
   large?: boolean;
   doneColor?: string;
+  indicator?: boolean;
 }) {
+  const className = `tristate-box state-${state}${large ? " lg" : ""}${
+    indicator ? " static" : ""
+  }`;
+  const style =
+    state === "done" && doneColor
+      ? { background: doneColor, borderColor: doneColor }
+      : undefined;
+
+  if (indicator) {
+    return (
+      <span className={className} style={style} aria-hidden="true">
+        {GLYPH[state]}
+      </span>
+    );
+  }
+
   return (
     <button
       type="button"
-      className={`tristate-box state-${state}${large ? " lg" : ""}`}
+      className={className}
       aria-label={LABEL[state]}
       title={LABEL[state]}
       onClick={onClick}
-      style={
-        state === "done" && doneColor
-          ? { background: doneColor, borderColor: doneColor }
-          : undefined
-      }
+      style={style}
     >
       {GLYPH[state]}
     </button>

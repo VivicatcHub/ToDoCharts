@@ -54,9 +54,16 @@ export const WEEK_COLORS = [
   "--week-6",
 ];
 
-export function formatNiceDate(iso: string): string {
+export interface DayParts {
+  weekday: string;
+  rest: string;
+}
+
+export function formatDayParts(iso: string): DayParts {
   const [y, m, d] = iso.split("-").map(Number);
   const date = new Date(y, m - 1, d);
-  const weekday = date.toLocaleDateString(undefined, { weekday: "long" });
-  return `${weekday}, ${MONTH_LABELS[date.getMonth()]} ${d}`;
+  return {
+    weekday: date.toLocaleDateString(undefined, { weekday: "long" }),
+    rest: `${MONTH_LABELS[date.getMonth()]} ${d}, ${y}`,
+  };
 }
