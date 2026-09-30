@@ -174,6 +174,18 @@ export default function App() {
     </>
   );
 
+  // Rendered once in either branch: it owns sync timers and the GIS script.
+  const driveSettings = (
+    <GoogleDriveSettings
+      habits={habits}
+      setHabits={setHabits}
+      completions={completions}
+      setCompletions={setCompletions}
+      updateInfo={updateInfo}
+      setUpdateInfo={setUpdateInfo}
+    />
+  );
+
   function renderDayView(embedded: boolean) {
     return (
       <DayView
@@ -206,35 +218,34 @@ export default function App() {
         />
 
         {splitView ? (
-          <main className="desktop-only split-layout">
-            <div className="split-main">{statsAndChart}</div>
-            <aside className="split-phone" aria-label="Phone view">
+          <main className="split-layout">
+            <div className="split-main">
+              <div className="desktop-only">{statsAndChart}</div>
+              {renderDayView(false)}
+              {driveSettings}
+            </div>
+            <aside className="split-phone desktop-only" aria-label="Phone view">
               {renderDayView(true)}
             </aside>
           </main>
         ) : (
-          <main className="desktop-only">
-            {statsAndChart}
-            <MonthGrid
-              stats={stats}
-              habits={habits}
-              completions={completions}
-              todayISO={todayISO}
-              onCycle={cycleHabitState}
-            />
-          </main>
+          <>
+            <main className="desktop-only">
+              {statsAndChart}
+              <MonthGrid
+                stats={stats}
+                habits={habits}
+                completions={completions}
+                todayISO={todayISO}
+                onCycle={cycleHabitState}
+              />
+            </main>
+
+            {renderDayView(false)}
+
+            {driveSettings}
+          </>
         )}
-
-        {renderDayView(false)}
-
-        <GoogleDriveSettings
-          habits={habits}
-          setHabits={setHabits}
-          completions={completions}
-          setCompletions={setCompletions}
-          updateInfo={updateInfo}
-          setUpdateInfo={setUpdateInfo}
-        />
       </div>
 
       {settingsOpen && (

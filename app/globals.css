@@ -1305,7 +1305,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   font-size: 13px;
 }
 
-.desktop-only.split-layout {
+.split-layout {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: 22px;
@@ -1330,6 +1330,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 @media (max-width: 760px) {
   .desktop-only {
     display: none !important;
+  }
+  .split-layout {
+    display: block;
   }
   .mobile-only {
     display: block !important;
