@@ -27,7 +27,10 @@ interface GoogleTokenError {
 }
 
 interface GoogleTokenClient {
-  requestAccessToken: (overrideConfig?: { prompt?: string }) => void;
+  requestAccessToken: (overrideConfig?: {
+    prompt?: string;
+    login_hint?: string;
+  }) => void;
 }
 
 declare global {
@@ -123,6 +126,7 @@ export default function GoogleDriveSettings({
   const tokenClientRef = useRef<GoogleTokenClient | null>(null);
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoReconnectTriedRef = useRef(false);
+  const autoReconnectingRef = useRef(false);
   const connectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -305,6 +309,7 @@ export default function GoogleDriveSettings({
       callback: (response: GoogleTokenResponse) => {
         clearConnectTimeout();
         setConnecting(false);
+        autoReconnectingRef.current = false;
         if (!response.access_token) {
           return;
         }
@@ -314,7 +319,11 @@ export default function GoogleDriveSettings({
       error_callback: (err: GoogleTokenError) => {
         clearConnectTimeout();
         setConnecting(false);
-        if (err.type === "popup_failed_to_open") {
+        // A blocked popup on the automatic attempt just falls back to the
+        // "Reconnect" button, no need to flag it as an error.
+        const wasAuto = autoReconnectingRef.current;
+        autoReconnectingRef.current = false;
+        if (err.type === "popup_failed_to_open" && !wasAuto) {
           setError("Your browser blocked the Google sign-in popup.");
         }
       },
@@ -330,8 +339,27 @@ export default function GoogleDriveSettings({
       if (cached) {
         scheduleTokenRefresh(cached.expiresInSeconds);
         handleToken(cached.token, cached.expiresInSeconds);
+        return;
+      }
+      // Token expired but we were connected before: ask Google for a new one
+      // for the same account without waiting for a click.
+      const lastUser = getStoredUserEmail();
+      if (lastUser) {
+        autoReconnectingRef.current = true;
+        requestToken({ prompt: "", login_hint: lastUser });
       }
     }, 0);
+  }
+
+  function requestToken(overrideConfig?: {
+    prompt?: string;
+    login_hint?: string;
+  }) {
+    setError(null);
+    setSessionExpired(false);
+    setConnecting(true);
+    armConnectTimeout();
+    tokenClientRef.current?.requestAccessToken(overrideConfig);
   }
 
   useEffect(() => {
@@ -350,15 +378,12 @@ export default function GoogleDriveSettings({
     if (!tokenClientRef.current) {
       initializeGoogleClient();
     }
-    setError(null);
-    setSessionExpired(false);
-    setConnecting(true);
-    armConnectTimeout();
-    tokenClientRef.current?.requestAccessToken(
+    autoReconnectingRef.current = false;
+    requestToken(
       promptSelectAccount
         ? { prompt: "select_account" }
         : userEmail
-          ? { prompt: "" }
+          ? { prompt: "", login_hint: userEmail }
           : undefined,
     );
   }

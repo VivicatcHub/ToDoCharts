@@ -174,7 +174,6 @@ export default function App() {
     </>
   );
 
-  // Rendered once in either branch: it owns sync timers and the GIS script.
   const driveSettings = (
     <GoogleDriveSettings
       habits={habits}
