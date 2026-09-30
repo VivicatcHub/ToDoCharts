@@ -2,7 +2,6 @@
 
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
-import { CURRENT_SCHEMA_VERSION } from "@/lib/types";
 import type { Completions, Habit, UpdateInfo } from "@/lib/types";
 import {
   clearAccessToken,
@@ -154,8 +153,7 @@ export default function GoogleDriveSettings({
         habitsRef.current.length > 0 ||
         Object.keys(completionsRef.current).length > 0;
 
-      if (!backup && !hasLocalData) {
-      } else if (
+      if (
         backup &&
         (!hasLocalData || backup.updatedAt > updateInfoRef.current.updatedAt)
       ) {
@@ -222,9 +220,10 @@ export default function GoogleDriveSettings({
       } else {
         setHabits([]);
         setCompletions({});
+        const pushed = await uploadBackup([], {});
         applySyncedUpdateInfo({
-          schemaVersion: CURRENT_SCHEMA_VERSION,
-          updatedAt: new Date().toISOString(),
+          schemaVersion: pushed.schemaVersion,
+          updatedAt: pushed.updatedAt,
         });
       }
       markSynced();

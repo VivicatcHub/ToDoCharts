@@ -29,6 +29,9 @@ export async function downloadBackup() {
     return null;
   }
   const json = await downloadBackupFile(fileId);
+  if (!json.trim()) {
+    return null;
+  }
   const backup = JSON.parse(json);
   if (!isValidBackup(backup)) {
     throw new Error("Invalid backup format");

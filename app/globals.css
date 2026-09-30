@@ -7,6 +7,9 @@
   --yellow-green: #8ac926;
   --steel-blue: #1982c4;
   --dusty-grape: #6a4c93;
+  --gold: #ffd166;
+  --gold-deep: #b8860b;
+  --storm: #3a2440;
 
   --bg: #0f1115;
   --panel: #171a21;
@@ -66,8 +69,6 @@ body {
   outline-offset: 2px;
 }
 
-/* ---------------------------------------------------------------- top bar */
-
 .topbar {
   display: flex;
   align-items: center;
@@ -113,8 +114,6 @@ body {
   text-align: center;
 }
 
-/* ---------------------------------------------------------------- buttons */
-
 .icon-btn {
   background: var(--panel-2);
   border: 1px solid var(--border);
@@ -144,6 +143,18 @@ body {
 
 .settings-btn {
   font-size: 18px;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.view-toggle.active {
+  background: color-mix(in srgb, var(--accent) 22%, var(--panel-2));
+  border-color: var(--accent);
+  color: #fff;
 }
 
 .btn {
@@ -205,8 +216,6 @@ body {
 .btn.block {
   width: 100%;
 }
-
-/* ------------------------------------------------------------ stats cards */
 
 .stats-row {
   display: grid;
@@ -286,8 +295,6 @@ body {
   width: 100%;
   display: block;
 }
-
-/* ------------------------------------------------------------ month grid */
 
 .grid-wrap {
   background: var(--panel);
@@ -389,6 +396,11 @@ td.day-cell.is-today {
   border-color: var(--green);
   color: #fff;
 }
+.tristate-box.state-fail {
+  background: color-mix(in srgb, var(--green) 45%, #000);
+  border-color: color-mix(in srgb, var(--green) 45%, #000);
+  color: #fff;
+}
 .tristate-box.state-skip {
   background: #6b7280;
   border-color: #6b7280;
@@ -438,7 +450,8 @@ td.day-cell.is-today {
 }
 .mini-bar-inner {
   height: 100%;
-  background: var(--green);
+  background: linear-gradient(90deg, var(--red), var(--green));
+  transition: clip-path 0.25s;
 }
 
 tr.summary-row td,
@@ -456,7 +469,138 @@ tr.summary-row.notdone td {
   color: var(--red);
 }
 
-/* -------------------------------------------------------------- day view */
+.habit-name-btn {
+  all: unset;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.habit-name-btn:hover {
+  color: #fff;
+}
+.habit-name-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+tr.is-selected td.habit-name {
+  background: color-mix(in srgb, var(--accent) 24%, var(--panel));
+  box-shadow: inset 4px 0 0 var(--accent);
+  font-weight: 700;
+}
+tr.is-selected td {
+  background-color: color-mix(in srgb, var(--accent) 12%, var(--panel));
+}
+tr.is-selected td.day-cell {
+  background-color: color-mix(in srgb, var(--accent) 18%, var(--panel-2));
+}
+
+.standout-icon {
+  display: block;
+  font-size: 11px;
+  line-height: 1;
+  margin-bottom: 1px;
+}
+
+table.month-grid tr.summary-row td.best-day {
+  color: var(--gold);
+  font-weight: 700;
+  background:
+    linear-gradient(
+        115deg,
+        transparent 35%,
+        rgba(255, 209, 102, 0.12) 50%,
+        transparent 65%
+      )
+      0 0 / 300% 100%,
+    rgba(255, 209, 102, 0.07);
+  box-shadow:
+    inset 1px 0 0 rgba(255, 209, 102, 0.28),
+    inset -1px 0 0 rgba(255, 209, 102, 0.28);
+  animation: gold-shimmer 6s ease-in-out infinite;
+}
+
+table.month-grid tr.summary-row td.worst-day {
+  color: #e8e4ff;
+  background: linear-gradient(180deg, #2b2f45, var(--storm));
+}
+
+.summary-val {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes gold-shimmer {
+  0%,
+  100% {
+    background-position: 0% 0;
+  }
+  50% {
+    background-position: 100% 0;
+  }
+}
+
+table.month-grid tr.summary-row td.worst-day,
+.day-summary.worst-day {
+  position: relative;
+  overflow: hidden;
+}
+
+table.month-grid tr.summary-row td.worst-day::before,
+table.month-grid tr.summary-row td.worst-day::after,
+.day-summary.worst-day::before,
+.day-summary.worst-day::after {
+  content: "";
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  top: calc(-1 * var(--rain-tile));
+  bottom: 0;
+  pointer-events: none;
+  background-size: var(--rain-width) var(--rain-tile);
+  will-change: transform;
+  animation: rain-fall var(--rain-speed) linear infinite;
+}
+
+table.month-grid tr.summary-row td.worst-day::before,
+.day-summary.worst-day::before {
+  --rain-tile: 34px;
+  --rain-width: 22px;
+  --rain-speed: 1.5s;
+  opacity: 0.45;
+  background-image:
+    radial-gradient(1px 4px at 20% 25%, rgba(190, 210, 255, 0.9), transparent),
+    radial-gradient(1px 4px at 70% 75%, rgba(190, 210, 255, 0.9), transparent);
+}
+
+table.month-grid tr.summary-row td.worst-day::after,
+.day-summary.worst-day::after {
+  --rain-tile: 56px;
+  --rain-width: 30px;
+  --rain-speed: 0.85s;
+  opacity: 0.6;
+  background-image:
+    radial-gradient(
+      1.2px 8px at 30% 20%,
+      rgba(210, 225, 255, 0.95),
+      transparent
+    ),
+    radial-gradient(
+      1.2px 8px at 80% 65%,
+      rgba(210, 225, 255, 0.95),
+      transparent
+    );
+}
+
+@keyframes rain-fall {
+  from {
+    transform: skewX(-12deg) translate3d(0, 0, 0);
+  }
+  to {
+    transform: skewX(-12deg) translate3d(0, var(--rain-tile), 0);
+  }
+}
 
 .day-view {
   padding: 16px 0 24px;
@@ -535,6 +679,75 @@ tr.summary-row.notdone td {
   border-radius: var(--radius-lg);
   padding: 16px;
   margin-bottom: 16px;
+}
+
+.day-summary.best-day {
+  position: relative;
+  overflow: hidden;
+}
+.day-summary > * {
+  position: relative;
+  z-index: 1;
+}
+
+.day-summary.best-day {
+  border-color: rgba(255, 209, 102, 0.35);
+  background:
+    radial-gradient(
+      120% 140% at 0% 50%,
+      rgba(255, 209, 102, 0.07),
+      transparent 60%
+    ),
+    var(--panel);
+}
+.day-summary.best-day::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    110deg,
+    transparent 35%,
+    rgba(255, 245, 204, 0.06) 50%,
+    transparent 65%
+  );
+  background-size: 250% 100%;
+  animation: gold-sweep 7s ease-in-out infinite;
+}
+
+.day-summary.worst-day {
+  border-color: color-mix(in srgb, var(--red) 60%, var(--storm));
+  background: linear-gradient(160deg, #23263a, var(--storm));
+}
+
+.standout-chip {
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.best-day .standout-chip {
+  color: var(--gold);
+  background: rgba(255, 209, 102, 0.1);
+  border: 1px solid rgba(255, 209, 102, 0.4);
+}
+.worst-day .standout-chip {
+  color: #d9d4ef;
+  background: rgba(255, 89, 94, 0.18);
+  border: 1px solid rgba(255, 89, 94, 0.5);
+}
+
+@keyframes gold-sweep {
+  0% {
+    background-position: 100% 0;
+  }
+  60%,
+  100% {
+    background-position: 0% 0;
+  }
 }
 
 .progress-ring {
@@ -621,6 +834,14 @@ tr.summary-row.notdone td {
     rgba(138, 201, 38, 0.02)
   );
 }
+.habit-row-mobile.state-fail {
+  border-color: var(--red);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 89, 94, 0.12),
+    rgba(255, 89, 94, 0.02)
+  );
+}
 .habit-row-mobile.state-skip {
   border-color: #6b7280;
   opacity: 0.75;
@@ -680,8 +901,6 @@ tr.summary-row.notdone td {
   text-align: center;
   padding: 30px 10px;
 }
-
-/* ---------------------------------------------------------- google drive */
 
 .drive-card {
   background: var(--panel);
@@ -845,8 +1064,6 @@ tr.summary-row.notdone td {
   background: rgba(255, 89, 94, 0.1);
   color: var(--red);
 }
-
-/* -------------------------------------------------------- settings modal */
 
 .modal-overlay {
   position: fixed;
@@ -1088,7 +1305,27 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   font-size: 13px;
 }
 
-/* ------------------------------------------------------------- responsive */
+.desktop-only.split-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.split-phone {
+  position: sticky;
+  top: 90px;
+  margin-top: 22px;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  padding: 6px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 28px;
+  box-shadow:
+    0 0 0 6px var(--panel),
+    var(--shadow-lg);
+}
 
 @media (max-width: 760px) {
   .desktop-only {
@@ -1157,7 +1394,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   input[type="date"],
   input[type="number"],
   select {
-    font-size: 16px; /* keeps iOS from zooming on focus */
     padding: 12px;
   }
   .btn {
@@ -1175,5 +1411,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 @media (min-width: 761px) {
   .mobile-only {
     display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  table.month-grid tr.summary-row td.best-day,
+  table.month-grid tr.summary-row td.worst-day::before,
+  table.month-grid tr.summary-row td.worst-day::after,
+  .day-summary.best-day::after,
+  .day-summary.worst-day::before,
+  .day-summary.worst-day::after {
+    animation: none;
   }
 }

@@ -2,10 +2,16 @@
 
 import type { TristateState } from "@/lib/types";
 
-const GLYPH: Record<TristateState, string> = { none: "", done: "✓", skip: "–" };
+const GLYPH: Record<TristateState, string> = {
+  none: "",
+  done: "✓",
+  fail: "✕",
+  skip: "–",
+};
 const LABEL: Record<TristateState, string> = {
-  none: "not done",
+  none: "not filled",
   done: "done",
+  fail: "failed",
   skip: "skipped (does not count)",
 };
 
@@ -25,9 +31,10 @@ export default function TristateBox({
   const className = `tristate-box state-${state}${large ? " lg" : ""}${
     indicator ? " static" : ""
   }`;
+  const color = doneColor && state === "fail" ? darken(doneColor) : doneColor;
   const style =
-    state === "done" && doneColor
-      ? { background: doneColor, borderColor: doneColor }
+    color && (state === "done" || state === "fail")
+      ? { background: color, borderColor: color }
       : undefined;
 
   if (indicator) {
@@ -50,4 +57,8 @@ export default function TristateBox({
       {GLYPH[state]}
     </button>
   );
+}
+
+function darken(color: string): string {
+  return `color-mix(in srgb, ${color} 45%, #000)`;
 }

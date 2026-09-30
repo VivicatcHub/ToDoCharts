@@ -1,8 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { DOW_LABELS, WEEK_COLORS } from "@/lib/dates";
 import { habitState, isHabitApplicable } from "@/lib/habits";
-import type { Completions, Habit, MonthStats, PerDayStat } from "@/lib/types";
+import type {
+  Completions,
+  Habit,
+  MonthStats,
+  PerDayStat,
+  StandoutDays,
+} from "@/lib/types";
 import TristateBox from "./TristateBox";
 
 export default function MonthGrid({
@@ -18,8 +25,9 @@ export default function MonthGrid({
   todayISO: string;
   onCycle: (habitId: string, iso: string) => void;
 }) {
-  const { weeks, perDay, perHabit } = stats;
+  const { weeks, perDay, perHabit, standout } = stats;
   const allDays = weeks.flat();
+  const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
 
   const weekIdxByIso: Record<string, number> = {};
   weeks.forEach((w, wi) => {
@@ -66,6 +74,7 @@ export default function MonthGrid({
                 <th
                   key={iso}
                   className={"day-head" + (iso === todayISO ? " is-today" : "")}
+                  title={standoutTitle(standout, iso)}
                   style={{
                     background: `var(${WEEK_COLORS[weekIdxForDay % WEEK_COLORS.length]})`,
                   }}
@@ -98,9 +107,24 @@ export default function MonthGrid({
           {habits.map((habit) => {
             const habitStat = perHabit.find((p) => p.habit.id === habit.id)!;
             if (habitStat.applicableCount <= 0) return;
+            const isSelected = habit.id === selectedHabitId;
             return (
-              <tr key={habit.id}>
-                <td className="habit-name">{habit.name}</td>
+              <tr
+                key={habit.id}
+                className={isSelected ? "is-selected" : undefined}
+              >
+                <td className="habit-name">
+                  <button
+                    type="button"
+                    className="habit-name-btn"
+                    aria-pressed={isSelected}
+                    onClick={() =>
+                      setSelectedHabitId(isSelected ? null : habit.id)
+                    }
+                  >
+                    {habit.name}
+                  </button>
+                </td>
                 {allDays.map(({ iso }) => {
                   const applicable = isHabitApplicable(habit, iso);
                   const state = applicable
@@ -130,7 +154,9 @@ export default function MonthGrid({
                   <div className="mini-bar-outer">
                     <div
                       className="mini-bar-inner"
-                      style={{ width: `${Math.min(100, habitStat.pct)}%` }}
+                      style={{
+                        clipPath: `inset(0 ${100 - Math.min(100, habitStat.pct)}% 0 0)`,
+                      }}
                     />
                   </div>
                 </td>
@@ -146,18 +172,21 @@ export default function MonthGrid({
           <SummaryRow
             label="Progress"
             perDay={perDay}
+            standout={standout}
             cls="progress"
             valueFn={(d) => `${d.pct.toFixed(0)}%`}
           />
           <SummaryRow
             label="Done"
             perDay={perDay}
+            standout={standout}
             cls="done"
             valueFn={(d) => d.done}
           />
           <SummaryRow
             label="Not Done"
             perDay={perDay}
+            standout={standout}
             cls="notdone"
             valueFn={(d) => d.notDone}
           />
@@ -170,11 +199,13 @@ export default function MonthGrid({
 function SummaryRow({
   label,
   perDay,
+  standout,
   cls,
   valueFn,
 }: {
   label: string;
   perDay: PerDayStat[];
+  standout: StandoutDays;
   cls: string;
   valueFn: (d: PerDayStat) => string | number;
 }) {
@@ -184,11 +215,28 @@ function SummaryRow({
         {label}
       </th>
       {perDay.map((d) => (
-        <td key={d.iso}>{valueFn(d)}</td>
+        <td key={d.iso} className={standoutKind(standout, d.iso) || undefined}>
+          <span className="summary-val">{valueFn(d)}</span>
+        </td>
       ))}
       <td className="spacer-col" />
       <td />
       <td />
     </tr>
   );
+}
+
+function standoutKind(standout: StandoutDays, iso: string): string {
+  if (standout.bestISOs.includes(iso)) return "best-day";
+  if (standout.worstISOs.includes(iso)) return "worst-day";
+  return "";
+}
+
+function standoutTitle(
+  standout: StandoutDays,
+  iso: string,
+): string | undefined {
+  if (standout.bestISOs.includes(iso)) return "Best day of the month";
+  if (standout.worstISOs.includes(iso)) return "Roughest day of the month";
+  return undefined;
 }

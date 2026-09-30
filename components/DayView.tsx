@@ -6,12 +6,18 @@ import {
   habitState,
   isHabitApplicable,
 } from "@/lib/habits";
-import type { Completions, Habit, TristateState } from "@/lib/types";
+import type {
+  Completions,
+  Habit,
+  StandoutDays,
+  TristateState,
+} from "@/lib/types";
 import TristateBox from "./TristateBox";
 
 const STATE_LABEL: Record<TristateState, string> = {
   none: "Mark as done",
-  done: "Done — tap to skip",
+  done: "Done — tap to mark failed",
+  fail: "Failed — tap to skip",
   skip: "Skipped — tap to clear",
 };
 
@@ -28,6 +34,8 @@ export default function DayView({
   todayISO,
   habits,
   completions,
+  standout,
+  embedded,
   onPrevDay,
   onNextDay,
   onToday,
@@ -38,6 +46,8 @@ export default function DayView({
   todayISO: string;
   habits: Habit[];
   completions: Completions;
+  standout: StandoutDays;
+  embedded?: boolean;
   onPrevDay: () => void;
   onNextDay: () => void;
   onToday: () => void;
@@ -54,6 +64,11 @@ export default function DayView({
   const done = counted.filter(
     (h) => habitState(completions, h.id, dayViewISO) === "done",
   ).length;
+  const failed = counted.filter(
+    (h) => habitState(completions, h.id, dayViewISO) === "fail",
+  ).length;
+  const isBest = standout.bestISOs.includes(dayViewISO);
+  const isWorst = standout.worstISOs.includes(dayViewISO);
   const pct = counted.length ? Math.round((done / counted.length) * 100) : 0;
   const remaining = counted.length - done;
 
@@ -65,7 +80,7 @@ export default function DayView({
         : `${remaining} to go`;
 
   return (
-    <section className="day-view mobile-only">
+    <section className={"day-view" + (embedded ? "" : " mobile-only")}>
       <div className="day-nav">
         <button
           className="icon-btn"
@@ -93,13 +108,21 @@ export default function DayView({
         </div>
       )}
 
-      <div className="day-summary">
+      <div
+        className={
+          "day-summary" +
+          (isBest ? " best-day" : "") +
+          (isWorst ? " worst-day" : "")
+        }
+      >
         <div
           className="progress-ring"
           style={
             {
               "--pct": pct,
-              "--ring": ringColor(pct, counted.length > 0),
+              "--ring": isBest
+                ? "var(--gold)"
+                : ringColor(pct, counted.length > 0),
             } as React.CSSProperties
           }
           role="img"
@@ -108,9 +131,16 @@ export default function DayView({
           <span>{pct}%</span>
         </div>
         <div className="day-summary-meta">
+          {isBest && (
+            <span className="standout-chip">♛ Best day of the month</span>
+          )}
+          {isWorst && (
+            <span className="standout-chip">⛈ Roughest day of the month</span>
+          )}
           <span className="headline">{headline}</span>
           <span className="sub">
             {done}/{counted.length} habits done
+            {failed > 0 && ` · ${failed} failed`}
             {applicable.length !== counted.length &&
               ` · ${applicable.length - counted.length} skipped`}
           </span>

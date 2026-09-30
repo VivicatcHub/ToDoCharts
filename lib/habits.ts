@@ -11,7 +11,9 @@ import type {
   DayCell,
   Habit,
   MonthStats,
+  PerDayStat,
   Recurrence,
+  StandoutDays,
   TristateState,
   Week,
 } from "./types";
@@ -44,12 +46,36 @@ export function habitState(
 ): TristateState {
   const v = completions[iso] && completions[iso][habitId];
   if (v === "done") return "done";
+  if (v === "fail") return "fail";
   if (v === "skip") return "skip";
   return "none";
 }
 
+const TRISTATE_CYCLE: TristateState[] = ["none", "done", "fail", "skip"];
+
 export function nextTristate(current: TristateState): TristateState {
-  return current === "none" ? "done" : current === "done" ? "skip" : "none";
+  const i = TRISTATE_CYCLE.indexOf(current);
+  return TRISTATE_CYCLE[(i + 1) % TRISTATE_CYCLE.length];
+}
+
+export function findStandoutDays(perDay: PerDayStat[]): StandoutDays {
+  function topDays(
+    candidates: PerDayStat[],
+    ratio: (d: PerDayStat) => number,
+  ): string[] {
+    const max = Math.max(...candidates.map(ratio));
+    return candidates.filter((d) => ratio(d) === max).map((d) => d.iso);
+  }
+
+  const bestISOs = topDays(
+    perDay.filter((d) => d.done > 0),
+    (d) => d.pct,
+  );
+  const worstISOs = topDays(
+    perDay.filter((d) => d.failed > 0 && !bestISOs.includes(d.iso)),
+    (d) => d.failed / d.applicableCount,
+  );
+  return { bestISOs, worstISOs };
 }
 
 export function buildWeeks(year: number, monthIndex: number): Week[] {
@@ -93,12 +119,16 @@ export function computeMonthStats(
     const done = counted.filter(
       (h) => habitState(completions, h.id, iso) === "done",
     ).length;
+    const failed = counted.filter(
+      (h) => habitState(completions, h.id, iso) === "fail",
+    ).length;
     totalApplicable += counted.length;
     completed += done;
     return {
       iso,
       applicableCount: counted.length,
       done,
+      failed,
       notDone: counted.length - done,
       pct: counted.length ? (done / counted.length) * 100 : 0,
     };
@@ -128,6 +158,7 @@ export function computeMonthStats(
     progressPct: totalApplicable ? (completed / totalApplicable) * 100 : 0,
     perDay,
     perHabit,
+    standout: findStandoutDays(perDay),
   };
 }
 

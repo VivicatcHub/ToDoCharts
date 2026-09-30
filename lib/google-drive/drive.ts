@@ -32,28 +32,27 @@ export async function findBackupFile(): Promise<string | null> {
 }
 
 export async function createBackupFile(backup: string): Promise<string> {
-  const headers = await getHeaders();
+  const headers = new Headers(await getHeaders());
   const metadata = {
     name: "Habit Tracker Data",
     mimeType: "application/json",
   };
-  const form = new FormData();
-  form.append(
-    "metadata",
-    new Blob([JSON.stringify(metadata)], { type: "application/json" }),
-  );
-  form.append(
-    "file",
-    new Blob([backup], {
-      type: "application/json",
-    }),
-  );
+  const boundary = `todocharts-${Date.now().toString(16)}`;
+  const body =
+    `--${boundary}\r\n` +
+    "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
+    `${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\n` +
+    "Content-Type: application/json\r\n\r\n" +
+    `${backup}\r\n` +
+    `--${boundary}--`;
+  headers.set("Content-Type", `multipart/related; boundary=${boundary}`);
   const response = await fetch(
     `${UPLOAD_API}?uploadType=multipart&fields=id,name,modifiedTime`,
     {
       method: "POST",
       headers,
-      body: form,
+      body,
     },
   );
   if (!response.ok) {

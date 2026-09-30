@@ -11,11 +11,11 @@ export interface Habit {
   recurrence: Recurrence;
 }
 
-export type TristateValue = "done" | "skip";
+export type TristateValue = "done" | "fail" | "skip";
 
 export type Completions = Record<string, Record<string, TristateValue>>;
 
-export type TristateState = "none" | "done" | "skip";
+export type TristateState = "none" | TristateValue;
 
 export interface DayCell {
   day: number;
@@ -30,8 +30,14 @@ export interface PerDayStat {
   iso: string;
   applicableCount: number;
   done: number;
+  failed: number;
   notDone: number;
   pct: number;
+}
+
+export interface StandoutDays {
+  bestISOs: string[];
+  worstISOs: string[];
 }
 
 export interface PerHabitStat {
@@ -49,6 +55,7 @@ export interface MonthStats {
   progressPct: number;
   perDay: PerDayStat[];
   perHabit: PerHabitStat[];
+  standout: StandoutDays;
 }
 
 export const CURRENT_SCHEMA_VERSION = 1;

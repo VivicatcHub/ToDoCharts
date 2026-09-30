@@ -22,6 +22,7 @@ import GoogleDriveSettings from "./GoogleDrive/GoogleDriveSettings";
 const HABITS_KEY = "todocharts.habits";
 const COMPLETIONS_KEY = "todocharts.completions";
 const UPDATE_INFO_KEY = "todocharts.update.info";
+const SPLIT_VIEW_KEY = "todocharts.ui.splitView";
 
 export default function App() {
   const [habits, setHabits] = useLocalStorageState<Habit[]>(HABITS_KEY, []);
@@ -41,10 +42,24 @@ export default function App() {
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [dayViewISO, setDayViewISO] = useState(todayISO);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [splitView, setSplitView] = useLocalStorageState<boolean>(
+    SPLIT_VIEW_KEY,
+    false,
+  );
 
   const stats = useMemo(
     () => computeMonthStats(habits, completions, viewYear, viewMonth),
     [habits, completions, viewYear, viewMonth],
+  );
+
+  const [dayYear, dayMonth] = dayViewISO.split("-").map(Number);
+  const dayViewStandout = useMemo(
+    () =>
+      dayYear === viewYear && dayMonth - 1 === viewMonth
+        ? stats.standout
+        : computeMonthStats(habits, completions, dayYear, dayMonth - 1)
+            .standout,
+    [habits, completions, dayYear, dayMonth, viewYear, viewMonth, stats],
   );
 
   function touchUpdateInfo() {
@@ -148,6 +163,35 @@ export default function App() {
 
   const monthLabel = `${MONTH_LABELS[viewMonth]} ${viewYear}`;
 
+  const statsAndChart = (
+    <>
+      <StatsRow
+        numHabits={stats.numHabits}
+        completed={stats.completed}
+        progressPct={stats.progressPct}
+      />
+      <ProgressChart perDay={stats.perDay} weeks={stats.weeks} />
+    </>
+  );
+
+  function renderDayView(embedded: boolean) {
+    return (
+      <DayView
+        dayViewISO={dayViewISO}
+        todayISO={todayISO}
+        habits={habits}
+        completions={completions}
+        standout={dayViewStandout}
+        embedded={embedded}
+        onPrevDay={() => setDayViewISO((iso) => isoAddDays(iso, -1))}
+        onNextDay={() => setDayViewISO((iso) => isoAddDays(iso, 1))}
+        onToday={() => setDayViewISO(todayISO)}
+        onCycle={cycleHabitState}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
+    );
+  }
+
   return (
     <>
       <div id="app">
@@ -157,35 +201,31 @@ export default function App() {
           onNextMonth={goNextMonth}
           onToday={goToday}
           onOpenSettings={() => setSettingsOpen(true)}
+          splitView={splitView}
+          onToggleSplitView={() => setSplitView((v) => !v)}
         />
 
-        <main className="desktop-only">
-          <StatsRow
-            numHabits={stats.numHabits}
-            completed={stats.completed}
-            progressPct={stats.progressPct}
-          />
-          <ProgressChart perDay={stats.perDay} />
-          <MonthGrid
-            stats={stats}
-            habits={habits}
-            completions={completions}
-            todayISO={todayISO}
-            onCycle={cycleHabitState}
-          />
-        </main>
+        {splitView ? (
+          <main className="desktop-only split-layout">
+            <div className="split-main">{statsAndChart}</div>
+            <aside className="split-phone" aria-label="Phone view">
+              {renderDayView(true)}
+            </aside>
+          </main>
+        ) : (
+          <main className="desktop-only">
+            {statsAndChart}
+            <MonthGrid
+              stats={stats}
+              habits={habits}
+              completions={completions}
+              todayISO={todayISO}
+              onCycle={cycleHabitState}
+            />
+          </main>
+        )}
 
-        <DayView
-          dayViewISO={dayViewISO}
-          todayISO={todayISO}
-          habits={habits}
-          completions={completions}
-          onPrevDay={() => setDayViewISO((iso) => isoAddDays(iso, -1))}
-          onNextDay={() => setDayViewISO((iso) => isoAddDays(iso, 1))}
-          onToday={() => setDayViewISO(todayISO)}
-          onCycle={cycleHabitState}
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
+        {renderDayView(false)}
 
         <GoogleDriveSettings
           habits={habits}
